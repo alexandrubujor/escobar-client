@@ -1,4 +1,4 @@
-##Description
+## Description
 
 Client for the double encryption temporary message system [escobar.one](https://escobar.one)
 
@@ -10,7 +10,7 @@ Client for the double encryption temporary message system [escobar.one](https://
 
 ## Operations
 
-###Encrypt data
+### Encrypt data
 
 Required params:
 * URL of the service
@@ -26,7 +26,7 @@ Remote key: Tr7bxaV4?5WceZ0UvU<xXK?pZe%=@Ge,
 Retrieve message URL: https://medellin.escobar.one/api/v1/cryptomessages/get/ad8befa9f16a66e27cc2562298e1d22981d5a7b5e4119ee2a3af480b3194dc0c/
 ```
 
-###Decrypt message
+### Decrypt message
 
 Required params:
 * URL of the message
