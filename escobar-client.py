@@ -5,6 +5,7 @@ import random
 import requests
 import json
 import sys
+from Crypto import Random
 
 
 import argparse
@@ -13,14 +14,15 @@ STRING_FOR_KEYS = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXY
 
 
 def encrypt(plaintext, key):
-    cryptor = AES.new(key, AES.MODE_ECB)
-    return cryptor.encrypt(plaintext)
+    iv = Random.new().read(AES.block_size)
+    cryptor = AES.new(key, AES.MODE_CBC, iv)
+    return iv + cryptor.encrypt(plaintext)
 
 
 def decrypt(ciphertext, key):
-    cryptor = AES.new(key, AES.MODE_ECB)
-    return cryptor.decrypt(ciphertext)
-
+    iv = ciphertext[:AES.block_size]
+    cryptor = AES.new(key, AES.MODE_CBC, iv)
+    return cryptor.decrypt(ciphertext[AES.block_size:])
 
 def align_data(plaintext):
     l = len(plaintext)
@@ -41,24 +43,27 @@ def hash_sum(content_b64):
     return hash_string
 
 
-def plain_text_encrypt_b64(plaintext_string, key_string):
+def plain_text_encrypt_b64(plaintext_string, key_bytes):
     aligned_text = align_data(plaintext_string)
-    first_encryption = encrypt(aligned_text.encode('ASCII'), key_string.encode('ASCII'))
+    first_encryption = encrypt(aligned_text.encode('ASCII'), key_bytes)
     return base64.b64encode(first_encryption)
 
 
-def encrypt_message(message):
+def encrypt_message(message, local_key=None):
     text_message = message
-    local_key = ''.join(random.choices(STRING_FOR_KEYS, k=32))
+    if local_key is None:
+        local_key = ''.join(random.choices(STRING_FOR_KEYS, k=32))
     print("Local key is: {}".format(local_key))
-    first_encryption = plain_text_encrypt_b64(text_message, local_key)
+    local_key_bytes = hashlib.sha256(local_key.encode('ASCII')).digest()
+    first_encryption = plain_text_encrypt_b64(text_message, local_key_bytes)
     return first_encryption.decode('ASCII')
 
 
 def decrypt_message(message_b64, local_key, remote_key):
     final_message = message_b64
     first_decrypt = decrypt(base64.b64decode(final_message), remote_key.encode('ASCII'))
-    second_decrypt = decrypt(first_decrypt, local_key.encode('ASCII'))
+    local_key_bytes = hashlib.sha256(local_key.encode('ASCII')).digest()
+    second_decrypt = decrypt(first_decrypt, local_key_bytes)
     message = second_decrypt.decode('ASCII')
     print(message)
 
@@ -86,7 +91,7 @@ if __name__ == "__main__":
     parser.add_argument("command", type=str, choices=["encrypt", "decrypt"],
                         help="Command to execute")
     parser.add_argument("--local-key", type=str,
-                        help="Local encryption key")
+                        help="Local encryption key", default=None)
     parser.add_argument("--remote-key", type=str,
                         help="Remote encryption key")
     parser.add_argument("--url", type=str, default=None,
@@ -97,7 +102,7 @@ if __name__ == "__main__":
     if args.command == "encrypt":
         print("Encrypting message operation")
         message = sys.stdin.read()
-        first_encryption = encrypt_message(message)
+        first_encryption = encrypt_message(message, args.local_key)
         if args.url is not None:
             try:
                 post_cryptomessage(first_encryption, args.url, args.token)
